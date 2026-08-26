@@ -35,6 +35,8 @@ jobs:
         run: npm ci
 
       - name: Verify tag matches package version
+        # 仅在 tag 推送时校验（手动 workflow_dispatch 以 main 分支运行时 ref_name 是 main，无法做 tag 校验）
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         run: |
           $tag = '${{ github.ref_name }}'.TrimStart('v')
@@ -52,10 +54,12 @@ jobs:
 
       - name: Set release notes
         # electron-builder 创建 Release 时正文为空，这里用 gh 补上版本说明。
+        # 手动运行时 ref_name 是分支名（如 main），这里统一取 package.json 的版本号。
         shell: pwsh
         run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $notes = @"
-          ## v${{ github.ref_name }} 更新内容
+          ## v$version 更新内容
 
           本次更新包含：
 
@@ -67,7 +71,7 @@ jobs:
           - 更新源固定为 github.com/libaidaidetang/ballnote，无需手动配置
           - 用户数据目录固定为 %APPDATA%/ball-re，升级/卸载不丢失笔记数据
           "@
-          gh release edit "${{ github.ref_name }}" --repo libaidaidetang/ballnote --notes $notes
+          gh release edit "v$version" --repo libaidaidetang/ballnote --notes $notes
 
       - name: Upload workflow artifact
         # 即使 GitHub Release 上传成功，也保留 Actions 工件，便于排障或重新下载。
