@@ -69,6 +69,27 @@ jobs:
           npm run build
           npm run dist:win -- --publish always
 
+      - name: Consolidate duplicate releases
+        # electron-builder 并发上传资产时可能对同一 tag 创建多个 Release（竞态），
+        # 这里列出该 tag 的全部 Release，保留资产最全的，删除其余，避免 latest.yml 归属混乱。
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $list = gh release list --repo libaidaidetang/ballnote --json tagName,id,assets --limit 50 2>$null | ConvertFrom-Json
+          $matches = @($list | Where-Object { $_.tagName -eq "v$version" })
+          if ($matches.Count -le 1) {
+            Write-Host "no duplicate releases for v$version (found $($matches.Count))"
+            exit 0
+          }
+          $sorted = $matches | Sort-Object { $_.assets.Count } -Descending
+          $keeper = $sorted[0]
+          Write-Host "keeping release $($keeper.id) with $($keeper.assets.Count) assets"
+          foreach ($dup in $sorted[1..($sorted.Count - 1)]) {
+            gh release delete $dup.id --repo libaidaidetang/ballnote --yes
+            Write-Host "deleted duplicate release $($dup.id)"
+          }
+          exit 0
+
       - name: Set release notes
         # electron-builder 创建 Release 时正文为空，这里用 gh 补上版本说明。
         # 手动运行时 ref_name 是分支名（如 main），这里统一取 package.json 的版本号。
@@ -90,6 +111,7 @@ jobs:
           - 用户数据目录固定为 %APPDATA%/ball-re，升级/卸载不丢失笔记数据
           "@ | Set-Content -Path $notesPath -Encoding UTF8
           gh release edit "v$version" --repo libaidaidetang/ballnote --notes-file $notesPath
+          exit 0
 
       - name: Upload workflow artifact
         # 即使 GitHub Release 上传成功，也保留 Actions 工件，便于排障或重新下载。
