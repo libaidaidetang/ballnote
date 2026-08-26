@@ -1,17 +1,20 @@
-# ä¾èµ–
+# ÒÀÀµ
 node_modules/
 
-# æ„å»ºäº§ç‰©ï¼ˆnpm run build / build:electron ç”Ÿæˆï¼‰
+# ¹¹½¨²úÎï£¨npm run build / build:electron Éú³É£©
 dist/
 dist-electron/
 
-# æ—¥å¿—ä¸ä¸´æ—¶æ–‡ä»¶
+# ´ò°ü²úÎï£¨npm run dist Éú³É£©
+release/
+
+# ÈÕÖ¾ÓëÁÙÊ±ÎÄ¼ş
 *.log
 npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# æœ¬åœ°ç¯å¢ƒä¸æ•æ„Ÿé…ç½®ï¼ˆAI å¯†é’¥ç­‰ä¸å…¥åº“ï¼‰
+# ±¾µØ»·¾³ÓëÃô¸ĞÅäÖÃ£¨AI ÃÜÔ¿µÈ²»Èë¿â£©
 .env
 .env.*
 

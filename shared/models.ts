@@ -140,10 +140,6 @@ export interface PetSettingsData {
   bubbleDurationMs?: number
   /** 软件更新：后台自动检查开关（默认关） */
   autoCheckEnabled?: boolean
-  /** 软件更新：GitHub 仓库 owner/repo，空用内置默认值 */
-  updateRepo?: string
-  /** 软件更新：安装时静默执行（NSIS /S），默认交互式 */
-  updateSilent?: boolean
 }
 
 export interface LibrarySettingsData {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   AIConfig, BookStore, BubbleConfig, BubbleEmojiItem, CalendarData, MenuItemModel,
   PetCatalogData, PetSettingsData, ThoughtStoreData, UpdateState,
@@ -536,8 +536,6 @@ function UpdaterPanel({ settings, saveSettings, showToast }: {
   showToast: (msg: string, error?: boolean) => void
 }) {
   const [state, setState] = useState<UpdateState | null>(null)
-  const [repo, setRepo] = useState('')
-  const repoDirty = useRef(false)
 
   useEffect(() => {
     // 初始拉取状态 + 订阅主进程推送（检查中/可更新/下载进度/就绪/错误）
@@ -545,11 +543,6 @@ function UpdaterPanel({ settings, saveSettings, showToast }: {
     const un = window.api.update.onStatus(setState)
     return un
   }, [])
-
-  // settings 加载后同步一次仓库输入框；此后用户输入不再被覆盖
-  useEffect(() => {
-    if (!repoDirty.current) setRepo(settings?.updateRepo ?? '')
-  }, [settings?.updateRepo])
 
   const phase = state?.phase ?? 'idle'
   const busy = phase === 'checking' || phase === 'downloading'
@@ -584,24 +577,10 @@ function UpdaterPanel({ settings, saveSettings, showToast }: {
         后台自动检查更新（每 24 小时一次）
       </label>
 
-      {/* 更新源（owner/repo） */}
-      <div className="flex items-center gap-3 mt-3">
-        <span className="text-[13px] text-slate-500 w-20 shrink-0">更新源</span>
-        <input className="h-9 flex-1 rounded-lg border border-black/10 bg-white/70 px-2 text-[13px] outline-none"
-          value={repo}
-          onChange={(e) => { setRepo(e.target.value); repoDirty.current = true }}
-          placeholder="your-name/ballwork（GitHub 仓库，上传后填写）" />
-        <button className="h-9 px-3 rounded-lg border border-black/10 text-[12px] text-slate-600 hover:bg-black/5"
-          onClick={() => {
-            const r = repo.trim()
-            if (r && !/^[\w.-]+\/[\w.-]+$/.test(r)) { showToast('格式应为 owner/repo', true); return }
-            void saveSettings({ updateRepo: r })
-            showToast('更新源已保存')
-            repoDirty.current = false
-          }}>
-          保存
-        </button>
-      </div>
+      {/* 更新源说明（定向到官方仓库，不可配置） */}
+      <p className="text-[12px] text-slate-400 mt-3">
+        更新源：github.com/libaidaidetang/ballnote
+      </p>
 
       {/* 操作区：检查 / 下载 / 安装 + 进度与错误 */}
       <div className="flex items-center gap-3 mt-4">
@@ -623,10 +602,13 @@ function UpdaterPanel({ settings, saveSettings, showToast }: {
           </span>
         )}
         {phase === 'ready-to-install' && (
-          <button className="h-9 px-5 rounded-lg bg-green-500 text-white text-[13px] hover:bg-green-600 active:scale-95 transition"
-            onClick={() => void window.api.update.install()}>
-            安装并重启
-          </button>
+          <div className="flex items-center gap-2">
+            <button className="h-9 px-5 rounded-lg bg-green-500 text-white text-[13px] hover:bg-green-600 active:scale-95 transition"
+              onClick={() => void window.api.update.install()}>
+              安装并重启
+            </button>
+            <span className="text-[11px] text-slate-400">安装前会自动备份笔记数据</span>
+          </div>
         )}
         {phase === 'error' && (
           <span className="text-[12px] text-red-500 truncate max-w-[320px]" title={state?.error}>

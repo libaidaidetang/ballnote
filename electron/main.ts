@@ -22,6 +22,12 @@ import {
 } from './windows'
 import type { PageKind, StoreKey, WindowKind } from '../shared/models'
 
+// ===================== 用户数据根目录（跨版本稳定） =====================
+// 绝不能跟随 productName（BallWork → BallNote）变化：否则安装更新后 Electron 会创建新的
+// %APPDATA%/BallNote 空目录，用户会误以为书籍/笔记丢失。固定沿用历史数据目录 %APPDATA%/ball-re。
+// 必须在 app.whenReady() 前调用，随后所有 store/covers/note-images/books 都读取同一根目录。
+app.setPath('userData', path.join(app.getPath('appData'), 'ball-re'))
+
 // ===================== 单实例 =====================
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -622,7 +628,7 @@ function registerFileIpc(): void {
   // ---- 软件更新（GitHub Releases 源） ----
   ipcMain.handle('update:get-state', () => getUpdateState())
   ipcMain.handle('update:check', () => checkForUpdate())
-  ipcMain.handle('update:download', (e) => downloadUpdate(BrowserWindow.fromWebContents(e.sender)))
+  ipcMain.handle('update:download', () => downloadUpdate())
   ipcMain.handle('update:install', () => installUpdate())
 }
 

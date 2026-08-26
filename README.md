@@ -11,7 +11,26 @@ npm install          # 首次安装（electron 二进制下载失败时：
 npm run dev          # 开发模式（vite dev server + electron 热载入）
 npm run build        # 生产构建（tsc 类型检查 + vite build + esbuild 主进程）
 npm start            # 构建后启动
+npm run dist         # 本地打包 Windows NSIS 安装包（输出 release/；通常由 GitHub Actions 完成）
 ```
+
+## 发布与自动更新（GitHub Releases）
+
+正式发布不需要在本地上传安装包。详细的更新机制、数据保护/恢复和 GitHub Actions 发版步骤见：[更新与发布说明](docs/更新与发布说明.md)。推送匹配 `v*.*.*` 的 tag（例如 `v0.1.0`）会触发
+`.github/workflows/release-windows.yml`：GitHub Actions 在 `windows-latest` 上执行构建、生成 NSIS
+安装包、`latest.yml` 和 `.blockmap`，并自动创建/更新 GitHub Release、上传全部更新资产。
+
+```bash
+# 先把 package.json 的 version 改为 0.1.1，并提交代码
+# 然后创建与 version 完全一致的 tag（v 前缀）并推送：
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+应用内使用 `electron-updater` 的 GitHub provider 查询
+`libaidaidetang/ballnote`。策略为：后台自动检查（用户在设置中启用）+ 用户手动下载和确认安装；
+`latest.yml/.blockmap` 提供文件校验和差分下载，下载后由 NSIS 标准替换流程安装。Release 必须是正式
+Release（非 Draft、非 Pre-release），且 tag 必须与 package.json 的 version 一致。
 
 ## 目录结构
 
@@ -48,7 +67,9 @@ ball_re/
 
 ## 数据位置
 
+- 用户数据根目录（**跨更新、跨 productName 固定不变**）：`%APPDATA%/ball-re/`
 - 配置：`%APPDATA%/ball-re/config/*.json`（menus/petTypes/bubbles/ai/settings/books/thoughts/calendar/library）
+- 更新前自动备份：`%APPDATA%/ball-re/backups/pre-update-时间戳/config/`（每次点击「安装并重启」前创建，最近保留 2 份；备份失败则取消安装）
 - 上传封面：`%APPDATA%/ball-re/covers/`
 - 自定义图片（桌宠/图片表情）：`%APPDATA%/ball-re/assets/`（在 petTypes.json/bubbles.json 填相对路径）
 - AI 密钥：编辑 `ai.json` 填 `apiKey`（勿提交仓库）

@@ -1,0 +1,78 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      # 仅正式版本 tag 触发，例如 v0.1.0；预发布可手动运行工作流后另行标记
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish Windows release
+    runs-on: windows-latest
+    env:
+      # electron-builder 使用这个 GitHub 自动注入的 token 创建/更新 Release 并上传资产
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify tag matches package version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'.TrimStart('v')
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($tag -ne $version) {
+            throw "Tag v$tag 与 package.json version $version 不一致。请先同步版本号再打 tag。"
+          }
+
+      - name: Build and publish release
+        # electron-builder 根据 package.json 的 publish 配置：
+        # 生成 NSIS .exe + latest.yml + .blockmap，并创建/更新 GitHub Release 后上传它们。
+        run: |
+          npm run build
+          npm run dist:win -- --publish always
+
+      - name: Set release notes
+        # electron-builder 创建 Release 时正文为空，这里用 gh 补上版本说明。
+        shell: pwsh
+        run: |
+          $notes = @"
+          ## v${{ github.ref_name }} 更新内容
+
+          本次更新包含：
+
+          ### 新增
+          - **软件自动更新功能**：接入 electron-updater，支持后台自动检查（可关闭）、手动检查、下载进度显示、更新前自动备份数据（保留最近 2 份）
+          - **启动程序与安装体验**：NSIS 安装向导（可选安装目录、桌面快捷方式），配合 GitHub Actions 云端发版流程
+
+          ### 变更
+          - 更新源固定为 github.com/libaidaidetang/ballnote，无需手动配置
+          - 用户数据目录固定为 %APPDATA%/ball-re，升级/卸载不丢失笔记数据
+          "@
+          gh release edit "${{ github.ref_name }}" --repo libaidaidetang/ballnote --notes $notes
+
+      - name: Upload workflow artifact
+        # 即使 GitHub Release 上传成功，也保留 Actions 工件，便于排障或重新下载。
+        uses: actions/upload-artifact@v4
+        with:
+          name: BallNote-${{ github.ref_name }}-windows-x64
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14
