@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 透明窗口：body 本身透明，内容用不透明/半透明元素 */
+body {
+  background: transparent;
+  font-family: "Microsoft YaHei UI", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+  color: #111827;
+}
+
+/* 禁止文本选择（输入框除外） */
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* 页面通用滚动条 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 页面/弹窗主体卡片：纯白不透明背景（透明窗口下 backdrop-filter 无法模糊桌面，不透明保证可读性）。
+   边框用浅灰描边替代原白色（纯白底上可见） */
+.glass-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* 窗口外层玻璃卡片：无阴影变体（去除窗口周围的半透明边缘层） */
+.glass-card.flat {
+  box-shadow: none;
+}
+
+/* ===== 悬浮球动画（对齐 WPF PetBallView：呼吸/漂浮/光晕脉动） ===== */
+@keyframes ball-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+@keyframes ball-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+@keyframes halo-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@keyframes ball-shake {
+  0% { transform: translateX(0); }
+  16% { transform: translateX(-4px); }
+  32% { transform: translateX(4px); }
+  48% { transform: translateX(-3px); }
+  64% { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+/* 悬停鼓起（BackEase 果冻感） */
+@keyframes ball-hover-in {
+  0% { transform: scale(1); }
+  70% { transform: scale(1.055); }
+  100% { transform: scale(1.04); }
+}
+@keyframes ball-hover-out {
+  0% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+/* ===== 气泡卡片 ===== */
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bubble-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* 扇形菜单项淡入 */
+@keyframes menu-item-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 笔记块编辑器：首块空时显示正文引导词（JS 条件渲染，对齐预览字号、正文行距 20px） */
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ===== Lexical 待办列表（check list）：节点仅设 role=checkbox，外观由 CSS 绘制 ===== */
+.lexical-check-list {
+  list-style: none;
+  padding-left: 2px;
+}
+li[role="checkbox"] {
+  position: relative;
+  list-style: none;
+  padding-left: 14px;
+  cursor: default;
+}
+li[role="checkbox"]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #94A3B8;
+  border-radius: 3px;
+  background: #fff;
+  box-sizing: border-box;
+}
+li[role="checkbox"][aria-checked="true"]::before {
+  background: #3B82F6;
+  border-color: #3B82F6;
+}
+/* 对勾以勾选框中心定位，精确居中 */
+li[role="checkbox"][aria-checked="true"]::after {
+  content: '✓';
+  position: absolute;
+  left: 6px;
+  top: 12px;
+  transform: translate(-50%, -50%);
+  font-size: 9px;
+  line-height: 1;
+  color: #fff;
+}
+li[role="checkbox"][aria-checked="true"] {
+  color: #94A3B8;
+  text-decoration: line-through;
+}
+/* 编辑模式下 checkbox 可点击（预览模式 readOnly 不响应） */
+li[role="checkbox"]:hover {
+  cursor: pointer;
+}
+
+/* ===== 标签页内容切换过渡（激活标签内容淡入上浮） ===== */
+@keyframes doc-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.doc-in { animation: doc-in 180ms ease-out; }
+
+/* ===== 统一 tooltip（替代原生 title；元素加 data-tip="提示文本"） =====
+   悬停延迟 350ms 才显示（避免鼠标扫过时工具条闪烁），移开后立即隐藏；
+   深色圆角气泡。绝对/固定定位元素本身即为定位上下文，静态元素补 relative。 */
+[data-tip]:not(.absolute):not(.fixed):not(.sticky) {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 260px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #F1F5F9;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 70;
+  /* 离开 hover：立即隐藏 */
+  transition: opacity 0.12s ease 0s, visibility 0s linear 0s;
+}
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  /* 进入 hover：延迟 350ms 显示 */
+  transition: opacity 0.16s ease 0.35s, visibility 0s linear 0.35s;
+}

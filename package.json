@@ -1,0 +1,43 @@
+{
+  "name": "ball-re",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BallWork 桌面悬浮球 - Electron + React 19 + TypeScript + Vite + TailwindCSS 重写版",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on tcp:5173 && npm run build:electron && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && vite build && npm run build:electron",
+    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --external:electron --outdir=dist-electron --format=cjs",
+    "start": "npm run build && electron ."
+  },
+  "dependencies": {
+    "@lexical/code": "^0.49.0",
+    "@lexical/history": "^0.49.0",
+    "@lexical/list": "^0.49.0",
+    "@lexical/react": "^0.49.0",
+    "@lexical/rich-text": "^0.49.0",
+    "@lexical/selection": "^0.49.0",
+    "@lexical/utils": "^0.49.0",
+    "lexical": "^0.49.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^9.0.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.0.0",
+    "esbuild": "^0.24.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "wait-on": "^8.0.0"
+  },
+  "allowScripts": {}
+}
