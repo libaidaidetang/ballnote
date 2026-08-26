@@ -47,17 +47,20 @@ jobs:
 
       - name: Remove existing release for this tag
         # 防止 electron-builder 在同 tag 已存在 Release 时新建重复 Release（会占用同一 tag 导致上传/更新混乱）。
-        # 仅当该 tag 的 Release 已存在时才删除（保留 tag）；不存在则跳过，避免 gh 报错中断构建。
+        # 仅当该 tag 的 Release 已存在时才删除（保留 tag）；不存在则跳过。
+        # 注意：gh release view 找不到 release 时退出码为 1，会残留在 $LASTEXITCODE 中，
+        # 即使走了 else 分支，Actions 也会判定步骤失败——必须显式 exit 0。
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          gh release view "v$version" --repo libaidaidetang/ballnote > $null 2>&1
+          gh release view "v$version" --repo libaidaidetang/ballnote 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) {
             gh release delete "v$version" --repo libaidaidetang/ballnote --yes
             Write-Host "removed existing release v$version"
           } else {
             Write-Host "no existing release v$version, nothing to remove"
           }
+          exit 0
 
       - name: Build and publish release
         # electron-builder 根据 package.json 的 publish 配置：
