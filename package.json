@@ -1,6 +1,6 @@
 {
   "name": "ball-re",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "author": "libaidaidetang",
   "description": "BallWork 桌面悬浮球 - Electron + React 19 + TypeScript + Vite + TailwindCSS 重写版",
