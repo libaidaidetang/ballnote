@@ -62,21 +62,46 @@ jobs:
           }
           exit 0
 
+      - name: Pre-create GitHub release
+        # electron-builder 并发上传 .exe 与 .blockmap 时，两个任务会同时发现 release 不存在并各自创建，
+        # 导致同一 tag 出现多个 Release。这里预先用 gh 创建 release（带 notes），
+        # electron-builder 检测到 release 已存在后只会复用并上传资产。
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $notesPath = "$env:RUNNER_TEMP/pre-release-notes.md"
+          @"
+          ## v$version 更新内容
+
+          本次更新包含：
+
+          ### 新增
+          - **软件自动更新功能**：接入 electron-updater，支持后台自动检查（可关闭）、手动检查、下载进度显示、更新前自动备份数据（保留最近 2 份）
+          - **启动程序与安装体验**：NSIS 安装向导（可选安装目录、桌面快捷方式），配合 GitHub Actions 云端发版流程
+
+          ### 变更
+          - 更新源固定为 github.com/libaidaidetang/ballnote，无需手动配置
+          - 用户数据目录固定为 %APPDATA%/ball-re，升级/卸载不丢失笔记数据
+          "@ | Set-Content -Path $notesPath -Encoding UTF8
+          gh release create "v$version" --repo libaidaidetang/ballnote --title "v$version" --notes-file $notesPath
+          if ($LASTEXITCODE -ne 0) { Write-Host "pre-create failed (maybe exists), continuing"; }
+
       - name: Build and publish release
         # electron-builder 根据 package.json 的 publish 配置：
-        # 生成 NSIS .exe + latest.yml + .blockmap，并创建/更新 GitHub Release 后上传它们。
+        # 生成 NSIS .exe + latest.yml + .blockmap，并上传到已预创建的 GitHub Release。
         run: |
           npm run build
           npm run dist:win -- --publish always
 
       - name: Consolidate duplicate releases
-        # electron-builder 并发上传资产时可能对同一 tag 创建多个 Release（竞态），
-        # 这里列出该 tag 的全部 Release，保留资产最全的，删除其余，避免 latest.yml 归属混乱。
+        # 兜底：若仍出现重复 Release（如预创建失败），保留资产最全的，删除其余。
+        # 用 REST API 查询（gh release list 在并发场景下偶发解析为空）。
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $list = gh release list --repo libaidaidetang/ballnote --json tagName,id,assets --limit 50 2>$null | ConvertFrom-Json
-          $matches = @($list | Where-Object { $_.tagName -eq "v$version" })
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; "Accept" = "application/vnd.github+json" }
+          $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/libaidaidetang/ballnote/releases?per_page=100" -Headers $headers
+          $matches = @($rels | Where-Object { $_.tag_name -eq "v$version" })
           if ($matches.Count -le 1) {
             Write-Host "no duplicate releases for v$version (found $($matches.Count))"
             exit 0
@@ -85,7 +110,7 @@ jobs:
           $keeper = $sorted[0]
           Write-Host "keeping release $($keeper.id) with $($keeper.assets.Count) assets"
           foreach ($dup in $sorted[1..($sorted.Count - 1)]) {
-            gh release delete $dup.id --repo libaidaidetang/ballnote --yes
+            Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/libaidaidetang/ballnote/releases/$($dup.id)" -Headers $headers | Out-Null
             Write-Host "deleted duplicate release $($dup.id)"
           }
           exit 0
