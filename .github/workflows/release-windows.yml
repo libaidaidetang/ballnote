@@ -45,6 +45,15 @@ jobs:
             throw "Tag v$tag 与 package.json version $version 不一致。请先同步版本号再打 tag。"
           }
 
+      - name: Remove existing release for this tag
+        # 防止 electron-builder 在同 tag 已存在 Release 时新建重复 Release（会占用同一 tag 导致上传/更新混乱）。
+        # 删除 Release 记录（保留 tag），失败说明此前没有 Release，正常继续。
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          gh release delete "v$version" --repo libaidaidetang/ballnote --yes 2>$null
+          Write-Host "existing release removed (if any)"
+
       - name: Build and publish release
         # electron-builder 根据 package.json 的 publish 配置：
         # 生成 NSIS .exe + latest.yml + .blockmap，并创建/更新 GitHub Release 后上传它们。
@@ -58,7 +67,8 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $notes = @"
+          $notesPath = "$env:RUNNER_TEMP/release-notes.md"
+          @"
           ## v$version 更新内容
 
           本次更新包含：
@@ -70,8 +80,8 @@ jobs:
           ### 变更
           - 更新源固定为 github.com/libaidaidetang/ballnote，无需手动配置
           - 用户数据目录固定为 %APPDATA%/ball-re，升级/卸载不丢失笔记数据
-          "@
-          gh release edit "v$version" --repo libaidaidetang/ballnote --notes $notes
+          "@ | Set-Content -Path $notesPath -Encoding UTF8
+          gh release edit "v$version" --repo libaidaidetang/ballnote --notes-file $notesPath
 
       - name: Upload workflow artifact
         # 即使 GitHub Release 上传成功，也保留 Actions 工件，便于排障或重新下载。
