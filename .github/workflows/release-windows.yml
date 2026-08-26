@@ -89,31 +89,10 @@ jobs:
       - name: Build and publish release
         # electron-builder 根据 package.json 的 publish 配置：
         # 生成 NSIS .exe + latest.yml + .blockmap，并上传到已预创建的 GitHub Release。
+        # （预创建后 electron-builder 只会 overwrite 已存在资产，不再并发新建 Release）
         run: |
           npm run build
           npm run dist:win -- --publish always
-
-      - name: Consolidate duplicate releases
-        # 兜底：若仍出现重复 Release（如预创建失败），保留资产最全的，删除其余。
-        # 用 REST API 查询（gh release list 在并发场景下偶发解析为空）。
-        shell: pwsh
-        run: |
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; "Accept" = "application/vnd.github+json" }
-          $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/libaidaidetang/ballnote/releases?per_page=100" -Headers $headers
-          $matches = @($rels | Where-Object { $_.tag_name -eq "v$version" })
-          if ($matches.Count -le 1) {
-            Write-Host "no duplicate releases for v$version (found $($matches.Count))"
-            exit 0
-          }
-          $sorted = $matches | Sort-Object { $_.assets.Count } -Descending
-          $keeper = $sorted[0]
-          Write-Host "keeping release $($keeper.id) with $($keeper.assets.Count) assets"
-          foreach ($dup in $sorted[1..($sorted.Count - 1)]) {
-            Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/libaidaidetang/ballnote/releases/$($dup.id)" -Headers $headers | Out-Null
-            Write-Host "deleted duplicate release $($dup.id)"
-          }
-          exit 0
 
       - name: Set release notes
         # electron-builder 创建 Release 时正文为空，这里用 gh 补上版本说明。
